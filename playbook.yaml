@@ -1,0 +1,74 @@
+# A Ansible playbook to do the following:
+#     Install 3 appications on all servers
+#     Install and modify nginx on the sebservers group and start nginx service
+#     Install haproxy aon maganement server, configure round-robin load balanging and start haproxy service
+# This Ansible script assumes all target machines are Linux (Ubuntu) and Root privilege elevation
+# Author: Pierre Kamguia. e-mail: eyesmatic@gmail.com  (Playbook has not been tested in sandbox. It may contain errors)
+
+- hosts: all
+  tasks:
+    - name: install packages  #install the names apps on all servers
+      become: true
+      become_user: root
+      apt:
+        state: present
+        update_cache: true
+        name:
+          - telegraph
+          - mtr
+          - nmap
+        autoclean: true
+        autoremove: true
+          
+---
+- hosts: webservers
+  tasks:
+    - name: install nginx #install nginx on named servers
+      become: true
+      become_user: root
+      apt:
+        state: present
+        update_cache: true
+        name:
+          - nginx
+          - nginx-core
+        autoclean: true
+        autoremove: true
+
+    - name: change nginx welcome  #modify nginx index.html file to change welcome message
+      become: true
+      become_user: root
+      command:
+        sudo cat /usr/share/nginx/html/index.html|sed "s/Welcome to nginx\!/Welcome to nginx $HOSTNAME\!/" > /usr/share/nginx/html/index.html
+
+    - name: Start nginx service #start nginx service
+      become: true
+      become_user: root
+      command: sudo systemctl restart nginx.service
+
+---
+- hosts: management
+  tasks:
+    - name: install haproxy #install haproxy on management server
+      become: true
+      become_user: root
+      apt:
+        state: present
+        update_cache: true
+        name: haproxy
+        autoclean: true
+        autoremove: true
+
+    - name: config haproxy  #upload and overwrite haproxy configuration file
+      become: true
+      become_user: root
+      copy:
+        src: "./haproxy.conf"
+        dest: "/etc/haproxy/haproxy.cfg"
+        force: true
+        mode: 0777
+
+    - name: Start haproxy service #start haproxy service
+      become: true
+      become_user: root
+      command: sudo systemctl restart haproxy.service
